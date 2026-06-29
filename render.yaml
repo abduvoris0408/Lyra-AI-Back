@@ -1,0 +1,21 @@
+# Render.com Blueprint — Lyra API (NestJS backend)
+# Render → New → Blueprint → shu repo'ni (Lyra-AI-Back) tanlang.
+# GEMINI_API_KEY va WEB_ORIGIN ni Render dashboard'da to'ldiring.
+services:
+  - type: web
+    name: lyra-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false # Render dashboard'da maxfiy kiritiladi
+      - key: WEB_ORIGIN
+        sync: false # Vercel domeningiz, masalan https://lyra.vercel.app
+      - key: GEMINI_DEFAULT_MODEL
+        value: gemini-flash-latest
+      - key: GEMINI_FALLBACK_MODEL
+        value: gemini-flash-lite-latest
