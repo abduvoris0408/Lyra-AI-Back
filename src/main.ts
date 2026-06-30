@@ -11,14 +11,29 @@ async function bootstrap() {
   // httpOnly JWT cookie'larini o'qish uchun
   app.use(cookieParser());
 
-  // CORS — frontend (Next.js) bilan cookie/credential almashinuvi uchun
-  const origins = (config.get<string>('WEB_ORIGIN') ?? 'http://localhost:3000')
+  // CORS — frontend (Next.js) bilan cookie/credential almashinuvi uchun.
+  // Ruxsat: WEB_ORIGIN ro'yxatidagi aniq manzillar + localhost (dev) + har qanday
+  // *.vercel.app (preview deploylar uchun). Origin mos kelsa, cors paketi uni
+  // aks ettiradi (credentials bilan `*` ishlamaydi).
+  const allowList = (config.get<string>('WEB_ORIGIN') ?? 'http://localhost:3000')
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean);
 
+  const isAllowedOrigin = (origin: string): boolean =>
+    allowList.includes(origin) ||
+    /^http:\/\/localhost(:\d+)?$/i.test(origin) ||
+    /^https:\/\/([a-z0-9-]+\.)*vercel\.app$/i.test(origin);
+
   app.enableCors({
-    origin: origins,
+    origin: (
+      origin: string | undefined,
+      cb: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      // origin yo'q (curl, server-to-server, same-origin) — ruxsat
+      if (!origin) return cb(null, true);
+      cb(null, isAllowedOrigin(origin));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
