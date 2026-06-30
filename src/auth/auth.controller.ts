@@ -42,8 +42,16 @@ export class AuthController {
   ) {}
 
   private get cookieOpts() {
+    // Cookie xavfsizligini NODE_ENV'dan ajratamiz: Render'da NODE_ENV=production
+    // qo'ysak devDependencies (nest CLI, prisma) o'chib, build buziladi. Buning
+    // o'rniga aniq COOKIE_SECURE bayrog'ini ishlatamiz (cross-site uchun true).
+    const secureFlag = this.config.get<string>('COOKIE_SECURE');
+    const isProd =
+      secureFlag === 'true' ||
+      (secureFlag === undefined &&
+        this.config.get<string>('NODE_ENV') === 'production');
     return {
-      isProd: this.config.get<string>('NODE_ENV') === 'production',
+      isProd,
       domain: this.config.get<string>('COOKIE_DOMAIN') || undefined,
     };
   }
