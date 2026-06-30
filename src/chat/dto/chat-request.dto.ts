@@ -48,4 +48,17 @@ export class ChatRequestDto {
   @IsOptional()
   @IsString()
   system?: string;
+
+  /**
+   * Serverdagi suhbat id'si. Berilsa — yangi user xabari va Lyra javobi
+   * shu suhbatga saqlanadi. Bo'sh bo'lsa oqim ishlaydi, lekin saqlanmaydi.
+   */
+  @IsOptional()
+  @IsString()
+  conversationId?: string;
+
+  /** Model kuchi darajasi (Bosqich 2): "low" | "medium" | "high". */
+  @IsOptional()
+  @IsIn(['low', 'medium', 'high'])
+  effort?: 'low' | 'medium' | 'high';
 }

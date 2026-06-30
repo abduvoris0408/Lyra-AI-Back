@@ -1,0 +1,6 @@
+# pnpm 11+ sozlamalari shu yerda o'qiladi (package.json'dagi "pnpm" maydoni emas).
+# Prisma postinstall (engine yuklash) skriptlariga ruxsat — aks holda client ishlamaydi.
+allowBuilds:
+  '@prisma/engines': true
+  prisma: true
+  '@prisma/client': true

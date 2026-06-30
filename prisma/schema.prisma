@@ -1,0 +1,90 @@
+// Lyra AI — ma'lumotlar modeli (Prisma + Postgres).
+// Roadmap Bosqich 1: User / Subscription / Conversation / Message / UsageDaily.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma 7: ulanish URL'i sxemada emas — prisma.config.ts (CLI/migrate) va
+// PrismaClient konstruktoridagi driver adapter (runtime) orqali beriladi.
+datasource db {
+  provider = "postgresql"
+}
+
+enum Plan {
+  free
+  pro
+  max
+}
+
+enum Role {
+  user
+  assistant
+}
+
+model User {
+  id               String         @id @default(cuid())
+  email            String         @unique
+  name             String?
+  avatarUrl        String?
+  googleId         String         @unique
+  plan             Plan           @default(free)
+  stripeCustomerId String?        @unique
+  conversations    Conversation[]
+  usage            UsageDaily[]
+  subscription     Subscription?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model Subscription {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeSubscriptionId String   @unique
+  plan                 Plan
+  status               String // active, past_due, canceled ...
+  currentPeriodEnd     DateTime
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model Conversation {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String    @default("Yangi suhbat")
+  model     String    @default("gemini-flash-latest")
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId, updatedAt])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           Role
+  content        String
+  effort         String? // "low" | "medium" | "high"
+  tokensIn       Int?
+  tokensOut      Int?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+}
+
+// Kunlik foydalanish — limit va billing uchun (Bosqich 3)
+model UsageDaily {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  messages  Int      @default(0)
+  tokensIn  Int      @default(0)
+  tokensOut Int      @default(0)
+
+  @@unique([userId, date])
+}

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Response } from 'express';
+import { ConversationsService } from '../conversations/conversations.service';
 import type { ChatRequestDto } from './dto/chat-request.dto';
 import {
   GeminiService,
@@ -18,9 +19,16 @@ import {
 export class ChatService {
   private readonly logger = new Logger(ChatService.name);
 
-  constructor(private readonly gemini: GeminiService) {}
+  constructor(
+    private readonly gemini: GeminiService,
+    private readonly conversations: ConversationsService,
+  ) {}
 
-  async stream(dto: ChatRequestDto, res: Response): Promise<void> {
+  async stream(
+    dto: ChatRequestDto,
+    userId: string,
+    res: Response,
+  ): Promise<void> {
     // SSE sarlavhalari
     res.set({
       'Content-Type': 'text/event-stream; charset=utf-8',
@@ -61,6 +69,25 @@ export class ChatService {
 
     if (contents.length === 0) {
       return fail("Yuborish uchun xabar yo'q.");
+    }
+
+    // Yangi user xabarini (tarixning oxirgi user yozuvi) suhbatga saqlaymiz.
+    // Eng yaxshi harakat (best-effort): saqlash xato bersa ham oqim davom etadi.
+    const lastUser = [...(dto.messages ?? [])]
+      .reverse()
+      .find((m) => m.role === 'user');
+    if (dto.conversationId && lastUser?.content?.trim()) {
+      try {
+        await this.conversations.addMessage(userId, dto.conversationId, {
+          role: 'user',
+          content: lastUser.content,
+          effort: dto.effort,
+        });
+      } catch (err) {
+        this.logger.warn(
+          `User xabarini saqlab bo'lmadi: ${(err as Error)?.message}`,
+        );
+      }
     }
 
     // Klient ulanishni uzsa — upstream so'rovni ham bekor qilamiz
@@ -110,6 +137,7 @@ export class ChatService {
     const reader = upstream.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let fullText = '';
 
     try {
       while (true) {
@@ -130,7 +158,24 @@ export class ChatService {
           if (!payload || payload === '[DONE]') continue;
 
           const text = this.gemini.extractText(payload);
-          if (text) send({ delta: text });
+          if (text) {
+            fullText += text;
+            send({ delta: text });
+          }
+        }
+      }
+      // Lyra javobini suhbatga saqlaymiz (best-effort).
+      if (dto.conversationId && fullText.trim()) {
+        try {
+          await this.conversations.addMessage(userId, dto.conversationId, {
+            role: 'assistant',
+            content: fullText,
+            effort: dto.effort,
+          });
+        } catch (err) {
+          this.logger.warn(
+            `Javobni saqlab bo'lmadi: ${(err as Error)?.message}`,
+          );
         }
       }
       send({ done: true });
