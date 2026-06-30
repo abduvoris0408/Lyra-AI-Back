@@ -8,6 +8,14 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
 
+  // ETag'ni o'chiramiz — aks holda /auth/me kabi JSON javoblar 304 (Not Modified)
+  // qaytarib, brauzer keshidan beriladi. Bunda fetch'da res.ok=false bo'lib,
+  // getSession() noto'g'ri "sessiya yo'q" deb hisoblaydi.
+  const expressApp = app.getHttpAdapter().getInstance() as {
+    set(key: string, value: unknown): void;
+  };
+  expressApp.set('etag', false);
+
   // httpOnly JWT cookie'larini o'qish uchun
   app.use(cookieParser());
 
