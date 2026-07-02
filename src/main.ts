@@ -2,11 +2,18 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // bodyParser: false — o'rniga limiti kattaroq bo'lgan parserni o'zimiz
+  // qo'shamiz (pastda). Express default limiti 100KB bo'lib, rasm/PDF
+  // biriktirilgan chat so'rovlari 413 (Payload Too Large) bilan rad etilardi.
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
   const config = app.get(ConfigService);
+
+  app.use(json({ limit: '25mb' }));
+  app.use(urlencoded({ extended: true, limit: '25mb' }));
 
   // ETag'ni o'chiramiz — aks holda /auth/me kabi JSON javoblar 304 (Not Modified)
   // qaytarib, brauzer keshidan beriladi. Bunda fetch'da res.ok=false bo'lib,
