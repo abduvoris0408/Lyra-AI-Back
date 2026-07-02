@@ -1,19 +1,26 @@
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
-import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   // bodyParser: false — o'rniga limiti kattaroq bo'lgan parserni o'zimiz
   // qo'shamiz (pastda). Express default limiti 100KB bo'lib, rasm/PDF
   // biriktirilgan chat so'rovlari 413 (Payload Too Large) bilan rad etilardi.
-  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  //
+  // MUHIM: 'express'dan to'g'ridan-to'g'ri import qilmaymiz — u faqat transitive
+  // dependency (pnpm prod install'da topilmay, "Cannot find module 'express'"
+  // xatosini beradi). NestJS'ning o'z useBodyParser'i @nestjs/platform-express
+  // ichidagi body-parser'ni ishlatadi — qo'shimcha paket kerak emas.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false,
+  });
   const config = app.get(ConfigService);
 
-  app.use(json({ limit: '25mb' }));
-  app.use(urlencoded({ extended: true, limit: '25mb' }));
+  app.useBodyParser('json', { limit: '25mb' });
+  app.useBodyParser('urlencoded', { extended: true, limit: '25mb' });
 
   // ETag'ni o'chiramiz — aks holda /auth/me kabi JSON javoblar 304 (Not Modified)
   // qaytarib, brauzer keshidan beriladi. Bunda fetch'da res.ok=false bo'lib,
